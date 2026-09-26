@@ -6,6 +6,7 @@ pipeline {
         IMAGE_NAME = 'flask-cicd-demo'
         IMAGE = "${REGISTRY}/${IMAGE_NAME}"
         VERSION = '1.0.0'
+        NETWORK = 'pract4-cicd'
 
         STAGING_CONTAINER = 'flask-staging'
         STAGING_NETWORK = 'pract4-staging'
@@ -70,25 +71,22 @@ pipeline {
             steps {
                 sh """
                     docker rm -f flask-smoke 2>/dev/null || true
-
+        
                     docker run -d \
                         --name flask-smoke \
-                        -p 8090:5000 \
+                        --network ${env.NETWORK} \
                         -e APP_ENV=smoke \
                         -e APP_VERSION=${VERSION} \
                         -e BUILD_NUMBER=${BUILD_NUMBER} \
                         -e GIT_COMMIT=${GIT_COMMIT_SHORT} \
                         ${IMAGE}:${BUILD_NUMBER}
-
+        
                     sleep 5
-
-                    curl -f http://localhost:8090/health
-
-                    docker rm -f flask-smoke
+        
+                    curl -f http://flask-smoke:5000/health
                 """
             }
         }
-
         stage('5. Push to Registry') {
             steps {
                 sh """
@@ -97,7 +95,7 @@ pipeline {
                 """
 
                 sh """
-                    curl -f http://localhost:5000/v2/${IMAGE_NAME}/tags/list
+                    curl -f http://pract4-registry:5000/v2/${IMAGE_NAME}/tags/list
                 """
             }
         }
@@ -129,9 +127,9 @@ pipeline {
             steps {
                 sh """
                     sleep 3
-
-                    curl -f http://localhost:${STAGING_PORT}/health
-                    curl -f http://localhost:${STAGING_PORT}/env
+        
+                    curl -f http://${STAGING_CONTAINER}:5000/health
+                    curl -f http://${STAGING_CONTAINER}:5000/env
                 """
             }
         }
@@ -178,9 +176,9 @@ pipeline {
             steps {
                 sh """
                     sleep 3
-
-                    curl -f http://localhost:${PROD_PORT}/health
-                    curl -f http://localhost:${PROD_PORT}/env
+        
+                    curl -f http://${PROD_CONTAINER}:5000/health
+                    curl -f http://${PROD_CONTAINER}:5000/env
                 """
             }
         }
